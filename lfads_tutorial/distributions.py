@@ -21,7 +21,7 @@ from __future__ import print_function, division, absolute_import
 import jax.numpy as np
 from jax import grad, jit, vmap
 from jax import random
-from jax.scipy.special import gammaln
+from jax.scipy.special import gammaln, logsumexp
 
 import lfads_tutorial.utils as utils
 
@@ -196,14 +196,15 @@ def ar1_params(key, n, mean, autocorrelation_tau, noise_variance):
           'lognvar' : np.log(noise_variance) * np.ones((n,))}
 
 
-def log_poisson_1D(y, rate):
-    return y * np.log(rate) - rate - gammaln(y+1)
+def log_poisson_1D(y, log_rate):
+    return y * log_rate - np.exp(log_rate) - gammaln(y+1)
 
 
 def log_gaussian_1D(y, mu, sig2):
     return -0.5 * np.log(2.0 * np.pi * sig2) -0.5 * (y - mu)**2 / sig2
 
 
+# TODO : I think the function below assumes multiple discrete states. Remove second dim. 
 def calcium_log_likelihood(Y, log_rates, ca_params):
   """Compute the log likelihood under calcium observation model.
   Write this for a single time series x, then vmap across all neurons / time series. 
@@ -216,19 +217,21 @@ def calcium_log_likelihood(Y, log_rates, ca_params):
 
   # compute autoregressive component of mean
   pad = np.zeros((1, 1, alpha.shape[0]))
-  mus = np.concatenate((pad, alpha[None, :, :] * Y[:-1, None, :])) 
+  mus = np.concatenate((pad, alpha[None, None, :] * Y[:-1, None, :])) 
 
   # initialize spike count range
-  s = np.arange(0,self.S,1)
+  # TODO: put S in function
+  S = 10
+  s = np.arange(0,S,1)
 
   # add spike components to autoregressive mean for each number of spikes
-  mus = mus[:,:,:,None] + beta[None,:,:,None] * s
+  mus = mus[:,:,:,None] + beta[None,None,:,None] * s
 
   # compute log likelihood, marginalizing out the spikes
-  outg = log_gaussian_1D(Y[:,None,:,None], mus, sig2[None,:,:,None])
-  outp = log_poisson_1D(s[None,None,None,:], lambdas[:,:,:,None])
+  outg = log_gaussian_1D(Y[:,None,:,None], mus, sig2[None,None,:,None])
+  outp = log_poisson_1D(s[None,None,None,:], log_rates[:,None,:,None])
   lls = logsumexp(outg + outp, axis=3) # marginalize over unseen spikes here
-  ll = np.sum(lls * mask[:, None, :], axis=2) # sum over neurons & time points
+  ll = np.sum(lls) # sum over neurons & time points
   
   return ll
 
