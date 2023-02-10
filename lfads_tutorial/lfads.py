@@ -21,7 +21,7 @@ from functools import partial
 
 import jax.numpy as np
 from jax import jit, lax, random, vmap
-from jax.experimental import optimizers
+from jax.example_libraries import optimizers
 
 import lfads_tutorial.distributions as dists
 import lfads_tutorial.utils as utils
@@ -292,12 +292,16 @@ def lfads_params(key, lfads_hps):
   factors_params = linear_params(next(skeys), factors_dim, gen_dim)
   lograte_params = affine_params(next(skeys), data_dim, factors_dim)
 
+  ca_params = dists.ca_params(data_dim, lfads_hps['ca_alpha'],
+                              lfads_hps['ca_beta'], lfads_hps['ca_sigma'])
+
   return {'ic_enc' : ic_enc_params,
           'gen_ic' : gen_ic_params, 'ic_prior' : ic_prior_params,
           'con' : con_params, 'con_out' : con_out_params,
           'ii_prior' : ii_prior_params,
           'gen' : gen_params, 'factors' : factors_params,
-          'logrates' : lograte_params}
+          'logrates' : lograte_params,
+          'ca_params' : ca_params}
 
 
 def lfads_encode(params, lfads_hps, key, x_t, keep_rate):
@@ -511,7 +515,9 @@ def lfads_losses(params, lfads_hps, key, x_bxt, kl_scale, keep_rate):
   
   # Log-likelihood of data given latents.
   lograte_bxt = lfads['lograte_t']
-  log_p_xgz = np.sum(dists.poisson_log_likelihood(x_bxt, lograte_bxt)) / B
+  # log_p_xgz = np.sum(dists.poisson_log_likelihood(x_bxt, lograte_bxt)) / B
+  params['ca_params'] = lax.stop_gradient(params['ca_params'])
+  log_p_xgz = np.sum(dists.vmap_calcium_log_likelihood(x_bxt, lograte_bxt, params['ca_params'])) / B
 
   # L2
   l2reg = lfads_hps['l2reg']
