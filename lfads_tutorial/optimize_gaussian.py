@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as onp  # original CPU-backed NumPy
 import sklearn
 
-import lfads_tutorial.lfads_calcium as lfads
+import lfads_tutorial.lfads_gaussian as lfads
 import lfads_tutorial.utils as utils
 
 import time
