@@ -21,7 +21,7 @@ from functools import partial
 
 import jax.numpy as np
 from jax import jit, lax, random, vmap
-from jax.example_libraries import optimizers
+from jax.experimental import optimizers
 
 import lfads_tutorial.distributions as dists
 import lfads_tutorial.utils as utils
@@ -33,13 +33,11 @@ def sigmoid(x):
 
 def linear_params(key, o, u, ifactor=1.0):
   """Params for y = w x
-
   Arguments:
     key: random.PRNGKey for random bits
     o: output size
     u: input size
     ifactor: scaling factor
-
   Returns:
     a dictionary of parameters
   """
@@ -50,13 +48,11 @@ def linear_params(key, o, u, ifactor=1.0):
 
 def affine_params(key, o, u, ifactor=1.0):
   """Params for y = w x + b
-
   Arguments:
     key: random.PRNGKey for random bits
     o: output size
     u: input size
     ifactor: scaling factor
-
   Returns:
     a dictionary of parameters
   """
@@ -68,7 +64,6 @@ def affine_params(key, o, u, ifactor=1.0):
 
 def gru_params(key, n, u, ifactor=1.0, hfactor=1.0, hscale=0.0):
   """Generate GRU parameters
-
   Arguments:
     key: random.PRNGKey for random bits
     n: hidden state size
@@ -76,7 +71,6 @@ def gru_params(key, n, u, ifactor=1.0, hfactor=1.0, hscale=0.0):
     ifactor: scaling factor for input weights
     hfactor: scaling factor for hidden -> hidden weights
     hscale: scale on h0 initial condition
-
   Returns:
     a dictionary of parameters
   """
@@ -101,11 +95,9 @@ def gru_params(key, n, u, ifactor=1.0, hfactor=1.0, hscale=0.0):
 
 def affine(params, x):
   """Implement y = w x + b
-
   Arguments:
     params: a dictionary of params
     x: np array of input
-
   Returns:
     np array of output
   """
@@ -122,11 +114,9 @@ batch_affine = vmap(affine, in_axes=(None, 0))
 
 def normed_linear(params, x):
   """Implement y = \hat{w} x, where \hat{w}_ij = w_ij / |w_{i:}|, norm over j
-
   Arguments:
     params: a dictionary of params
     x: np array of input
-
   Returns:
     np array of output
   """
@@ -143,12 +133,10 @@ batch_normed_linear = vmap(normed_linear, in_axes=(None, 0))
 
 def dropout(x, key, keep_rate):
   """Implement a dropout layer.
-
   Arguments:
     x: np array to be dropped out
     key: random.PRNGKey for random bits
     keep_rate: dropout rate
-
   Returns:
     np array of dropped out x
   """
@@ -167,12 +155,10 @@ batch_dropout = vmap(dropout, in_axes=(0, 0, None))
 
 def run_dropout(x_t, key, keep_rate):
   """Run the dropout layer over additional dimensions, e.g. time.
-
   Arguments:
     x_t: np array to be dropped out
     key: random.PRNGKey for random bits
     keep_rate: dropout rate
-
   Returns:
     np array of dropped out x
   """
@@ -183,12 +169,10 @@ def run_dropout(x_t, key, keep_rate):
 
 def gru(params, h, x):
   """Implement the GRU equations.
-
   Arguments:
     params: dictionary of GRU parameters
     h: np array of  hidden state
     x: np array of input
-
   Returns:
     np array of hidden state after GRU update"""
   bfg = 0.5
@@ -208,7 +192,6 @@ def make_rnn_for_scan(rnn, params):
   Args: 
     rnn : f with sig (params, h, x) -> h
     params: params in f() sig.
-
   Returns: 
     f adapted for scan
   """
@@ -220,13 +203,11 @@ def make_rnn_for_scan(rnn, params):
 
 def run_rnn(rnn_for_scan, x_t, h0):
   """Run an RNN module forward in time.
-
   Arguments:
     rnn_for_scan: function for running RNN one step (h, x) -> (h, h)
       The params already embedded in the function.
     x_t: np array data for RNN input with leading dim being time
     h0: initial condition for running rnn
-
   Returns:
     np array of rnn applied to time data with leading dim being time"""
   _, h_t = lax.scan(rnn_for_scan, h0, x_t)
@@ -235,13 +216,11 @@ def run_rnn(rnn_for_scan, x_t, h0):
 
 def run_bidirectional_rnn(params, fwd_rnn, bwd_rnn, x_t):
   """Run an RNN encoder backwards and forwards over some time series data.
-
   Arguments:
     params: a dictionary of bidrectional RNN encoder parameters
     fwd_rnn: function for running forward rnn encoding
     bwd_rnn: function for running backward rnn encoding
     x_t: np array data for RNN input with leading dim being time
-
   Returns:
     tuple of np array concatenated forward, backward encoding, and
       np array of concatenation of [forward_enc(T), backward_enc(1)]
@@ -259,11 +238,9 @@ def run_bidirectional_rnn(params, fwd_rnn, bwd_rnn, x_t):
 
 def lfads_params(key, lfads_hps):
   """Instantiate random LFADS parameters.
-
   Arguments:
     key: random.PRNGKey for random bits
     lfads_hps: a dict of LFADS hyperparameters
-
   Returns:
     a dictionary of LFADS parameters
   """
@@ -292,28 +269,22 @@ def lfads_params(key, lfads_hps):
   factors_params = linear_params(next(skeys), factors_dim, gen_dim)
   lograte_params = affine_params(next(skeys), data_dim, factors_dim)
 
-  ca_params = dists.ca_params(data_dim, lfads_hps['ca_alpha'],
-                              lfads_hps['ca_beta'], lfads_hps['ca_sigma'])
-
   return {'ic_enc' : ic_enc_params,
           'gen_ic' : gen_ic_params, 'ic_prior' : ic_prior_params,
           'con' : con_params, 'con_out' : con_out_params,
           'ii_prior' : ii_prior_params,
           'gen' : gen_params, 'factors' : factors_params,
-          'logrates' : lograte_params,
-          'ca_params' : ca_params}
+          'logrates' : lograte_params}
 
 
 def lfads_encode(params, lfads_hps, key, x_t, keep_rate):
   """Run the LFADS network from input to generator initial condition vars.
-
   Arguments:
     params: a dictionary of LFADS parameters
     lfads_hps: a dictionary of LFADS hyperparameters
     key: random.PRNGKey for random bits
     x_t: np array input for lfads with leading dimension being time
     keep_rate: dropout keep rate
-
   Returns:
     3-tuple of np arrays: generator initial condition mean, log variance
       and also bidirectional encoding of x_t, with leading dim being time
@@ -334,7 +305,6 @@ def lfads_encode(params, lfads_hps, key, x_t, keep_rate):
 
 def lfads_decode_one_step(params, lfads_hps, key, keep_rate, c, f, g, xenc):
   """Run the LFADS network from latent variables to log rates one time step.
-
   Arguments:
     params: a dictionary of LFADS parameters
     lfads_hps: a dictionary of LFADS hyperparameters
@@ -344,7 +314,6 @@ def lfads_decode_one_step(params, lfads_hps, key, keep_rate, c, f, g, xenc):
     g: generator state at time step t-1
     f: factors at time step t-1
     xenc: np array bidirectional encoding at time t of input (x_t)
-
   Returns:
     7-tuple of np arrays all with leading dim being time,
       controller hidden state, generator hidden state, factors, 
@@ -366,7 +335,6 @@ def lfads_decode_one_step(params, lfads_hps, key, keep_rate, c, f, g, xenc):
 
 def lfads_decode_one_step_scan(params, lfads_hps, keep_rate, state, key_n_xenc):
   """Run the LFADS network one step, prepare the inputs and outputs for scan.
-
   Arguments:
     params: a dictionary of LFADS parameters
     lfads_hps: a dictionary of LFADS hyperparameters
@@ -374,7 +342,6 @@ def lfads_decode_one_step_scan(params, lfads_hps, keep_rate, state, key_n_xenc):
     state: (controller state at time step t-1, generator state at time step t-1, 
             factors at time step t-1)
     key_n_xenc: (random key, np array bidirectional encoding at time t of input (x_t))
-
   Returns: 2-tuple of state and state plus returned values
     ((controller state, generator state, factors), 
     (7-tuple of np arrays all with leading dim being time,
@@ -393,7 +360,6 @@ def lfads_decode_one_step_scan(params, lfads_hps, keep_rate, state, key_n_xenc):
 
 def lfads_decode(params, lfads_hps, key, ic_mean, ic_logvar, xenc_t, keep_rate):
   """Run the LFADS network from latent variables to log rates.
-
   Arguments:
     params: a dictionary of LFADS parameters
     lfads_hps: a dictionary of LFADS hyperparameters
@@ -403,7 +369,6 @@ def lfads_decode(params, lfads_hps, key, ic_mean, ic_logvar, xenc_t, keep_rate):
     xenc_t: np array bidirectional encoding of input (x_t) with leading dim
       being time
     keep_rate: dropout keep rate
-
   Returns:
     7-tuple of np arrays all with leading dim being time,
       controller hidden state, inferred input mean, inferred input log var,
@@ -435,14 +400,12 @@ def lfads_decode(params, lfads_hps, key, ic_mean, ic_logvar, xenc_t, keep_rate):
 
 def lfads(params, lfads_hps, key, x_t, keep_rate):
   """Run the LFADS network from input to output.
-
   Arguments:
     params: a dictionary of LFADS parameters
     lfads_hps: a dictionary of LFADS hyperparameters
     key: random.PRNGKey for random bits
     x_t: np array of input with leading dim being time
     keep_rate: dropout keep rate
-
   Returns:
     A dictionary of np arrays of all LFADS values of interest.
   """
@@ -475,7 +438,6 @@ batch_lfads = vmap(lfads, in_axes=(None, None, 0, 0, None))
 
 def lfads_losses(params, lfads_hps, key, x_bxt, kl_scale, keep_rate):
   """Compute the training loss of the LFADS autoencoder
-
   Arguments:
     params: a dictionary of LFADS parameters
     lfads_hps: a dictionary of LFADS hyperparameters
@@ -483,7 +445,6 @@ def lfads_losses(params, lfads_hps, key, x_bxt, kl_scale, keep_rate):
     x_bxt: np array of input with leading dims being batch and time
     keep_rate: dropout keep rate
     kl_scale: scale on KL
-
   Returns:
     a dictionary of all losses, including the key 'total' used for optimization
   """
@@ -515,9 +476,7 @@ def lfads_losses(params, lfads_hps, key, x_bxt, kl_scale, keep_rate):
   
   # Log-likelihood of data given latents.
   lograte_bxt = lfads['lograte_t']
-  # log_p_xgz = np.sum(dists.poisson_log_likelihood(x_bxt, lograte_bxt)) / B
-  params['ca_params'] = lax.stop_gradient(params['ca_params'])
-  log_p_xgz = np.sum(dists.vmap_calcium_log_likelihood(x_bxt, lograte_bxt, params['ca_params'])) / B
+  log_p_xgz = np.sum(dists.poisson_log_likelihood(x_bxt, lograte_bxt)) / B
 
   # L2
   l2reg = lfads_hps['l2reg']
@@ -533,7 +492,6 @@ def lfads_losses(params, lfads_hps, key, x_bxt, kl_scale, keep_rate):
 
 def lfads_training_loss(params, lfads_hps, key, x_bxt, kl_scale, keep_rate):
   """Pull out the total loss for training.
-
   Arguments:
     params: a dictionary of LFADS parameters
     lfads_hps: a dictionary of LFADS hyperparameters
@@ -541,7 +499,6 @@ def lfads_training_loss(params, lfads_hps, key, x_bxt, kl_scale, keep_rate):
     x_bxt: np array of input with leading dims being batch and time
     keep_rate: dropout keep rate
     kl_scale: scale on KL
-
   Returns:
     return the total loss for optimization
   """
@@ -551,13 +508,11 @@ def lfads_training_loss(params, lfads_hps, key, x_bxt, kl_scale, keep_rate):
 
 def posterior_sample_and_average(params, lfads_hps, key, x_txd):
   """Get the denoised lfad inferred values by posterior sample and average.
-
   Arguments:
     params: dictionary of lfads parameters
     lfads_hps: dict of LFADS hyperparameters
     key: JAX random state
     x_txd: 2d np.array time by dim trial to denoise
-
   Returns: 
     LFADS dictionary of inferred values, averaged over randomness.
   """
@@ -582,6 +537,3 @@ batch_lfads_jit = jit(batch_lfads, static_argnums=(1,))
 lfads_losses_jit = jit(lfads_losses, static_argnums=(1,))
 lfads_training_loss_jit = jit(lfads_training_loss, static_argnums=(1,))
 posterior_sample_and_average_jit = jit(posterior_sample_and_average, static_argnums=(1,))
-
-                  
-  
