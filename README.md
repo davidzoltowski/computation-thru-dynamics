@@ -1,11 +1,7 @@
 # Computation Through Dynamics
 
-This repository contains a number of subprojects related to the
-interlinking of computation and dynamics in artificial and biological
-neural systems. 
-
-This is not an officially supported Google product.
-
+This repository is a fork of [Computation Through Dynamics](https://github.com/google-research/computation-thru-dynamics) by Google LLC, licensed under the Apache License 2.0.
+It includes modifications and extensions by David Zoltowski.
 
 ## Prerequisites
 
