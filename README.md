@@ -1,6 +1,9 @@
 # Computation Through Dynamics
 
-This repository is a fork of [Computation Through Dynamics](https://github.com/google-research/computation-thru-dynamics) by Google LLC, licensed under the Apache License 2.0.
+This repository is a fork of the original 
+[google-research/computation-thru-dynamics](https://github.com/google-research/computation-thru-dynamics), 
+released by Google LLC under the Apache License 2.0.
+
 It includes modifications and extensions by David Zoltowski.
 
 ## Prerequisites
